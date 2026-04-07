@@ -6,7 +6,6 @@ from preprocess import _pairs_within_radius, haversine
 from model import build_and_solve_pt_ftcm
 
 
-
 # ---------------------------------------------------------------------------
 # PREPROCESSING
 # ---------------------------------------------------------------------------
@@ -67,19 +66,13 @@ def compute_eta_proximity(opened_set, station_min_dist_pt):
 # ---------------------------------------------------------------------------
 # PARTIAL SPEARMAN CORRELATION
 # ---------------------------------------------------------------------------
-
+# Procedure:
+#       1. Rank all three variables.
+#       2. Regress rank(x) on rank(control) via OLS; take residuals e_x.
+#       3. Regress rank(y) on rank(control) via OLS; take residuals e_y.
+#       4. Return Pearson correlation of e_x and e_y (equivalent to partial
+#          Spearman) together with its p-value.
 def _partial_spearman(df, x_col, y_col, control_col):
-    """
-    Partial Spearman rank correlation between x_col and y_col,
-    controlling for control_col.
-
-    Procedure:
-      1. Rank all three variables.
-      2. Regress rank(x) on rank(control) via OLS; take residuals e_x.
-      3. Regress rank(y) on rank(control) via OLS; take residuals e_y.
-      4. Return Pearson correlation of e_x and e_y (equivalent to partial
-         Spearman) together with its p-value.
-    """
     sub = df[[x_col, y_col, control_col]].dropna()
     n = len(sub)
 
@@ -107,12 +100,12 @@ def _spearman_test(results_df):
 
     # (x, y, control)
     tests = [
-        ("w1", "eta_trip",  "w2"),
-        ("w1", "eta_pt",   "w2"),
-        ("w1", "eta_proximity",  "w2"),
-        ("w2", "eta_trip",  "w1"),
-        ("w2", "eta_pt",   "w1"),
-        ("w2", "eta_proximity",  "w1"),
+        ("w1", "eta_trip", "w2"),
+        ("w1", "eta_pt", "w2"),
+        ("w1", "eta_proximity", "w2"),
+        ("w2", "eta_trip", "w1"),
+        ("w2", "eta_pt", "w1"),
+        ("w2", "eta_proximity", "w1"),
     ]
 
     rows = []
@@ -146,7 +139,7 @@ def run_correlation_analysis(J, Q, F, P_dir_q, S_pt_q, M_q, bss_df, pt_df, trips
 
     records = []
 
-    for w1, w2 in config.W_GRID:
+    for w1, w2 in config.CORRELATION_GRID:
         print(f"  Solving  w1={w1}  w2={w2} ...")
 
         obj_val, opened, solve_time = build_and_solve_pt_ftcm(
