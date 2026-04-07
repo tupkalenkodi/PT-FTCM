@@ -93,7 +93,7 @@ def load_pt_stops():
 
     stops = pd.concat([train_stops, bus_stops], ignore_index=True).reset_index(drop=True)
 
-    print(f"  Loaded {len(train_stops)} PT stops (Metrorail) and {len(bus_stops)} PT stops (Metrobus).")
+    print(f"  Loaded {len(train_stops)} PT stops (Metro rail) and {len(bus_stops)} PT stops (Metrobus).")
     return stops
 
 
@@ -233,10 +233,10 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
 
     # 1. N^o_q, N^d_q
     unique_origins = od_df[["origin_id", "origin_lat", "origin_lon"]].drop_duplicates("origin_id").reset_index(drop=True)
-    unique_dests = od_df[["dest_id",   "dest_lat",   "dest_lon"  ]].drop_duplicates("dest_id").reset_index(drop=True)
+    unique_tests = od_df[["dest_id", "dest_lat", "dest_lon"]].drop_duplicates("dest_id").reset_index(drop=True)
 
     orig_coords_rad = np.radians(unique_origins[["origin_lat", "origin_lon"]].values)
-    dest_coords_rad = np.radians(unique_dests[["dest_lat", "dest_lon"]].values)
+    dest_coords_rad = np.radians(unique_tests[["dest_lat", "dest_lon"]].values)
 
     orig_nbrs_idx = _pairs_within_radius(orig_coords_rad, bss_coords_rad, config.R_WALK_BSS)
     dest_nbrs_idx = _pairs_within_radius(dest_coords_rad, bss_coords_rad, config.R_WALK_BSS)
@@ -246,8 +246,8 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
         for idx in range(len(unique_origins))
     }
     _N_d_loc = {
-        unique_dests.loc[idx, "dest_id"]: [bss_ids[i] for i in dest_nbrs_idx[idx]]
-        for idx in range(len(unique_dests))
+        unique_tests.loc[idx, "dest_id"]: [bss_ids[i] for i in dest_nbrs_idx[idx]]
+        for idx in range(len(unique_tests))
     }
 
     N_o_q = {}
@@ -290,7 +290,7 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
     # For each PT stop k', which destination IDs are within R_BSS?
     dest_nbrs_from_pt = _pairs_within_radius(pt_coords_rad, dest_coords_rad, config.R_WALK_BSS)
     pt_to_reachable_dest_ids: dict[str, set] = {
-        pt_ids[k]: {unique_dests.loc[d_idx, "dest_id"] for d_idx in dest_nbrs_from_pt[k]}
+        pt_ids[k]: {unique_tests.loc[d_idx, "dest_id"] for d_idx in dest_nbrs_from_pt[k]}
         for k in range(len(pt_ids))
     }
 
@@ -350,9 +350,9 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
 # ENTRY POINT
 # ---------------------------------------------------------------------------
 
-# Load all data and build the complete sets and parameters
+# Load all cleaned_data and build the complete sets and parameters
 def build_model_data():
-    print("--- Building model data ---")
+    print("--- Building model cleaned_data ---")
 
     print("[1/6] Loading BSS candidate stations ...")
     bss_df = load_bss_candidate_stations()
@@ -369,7 +369,19 @@ def build_model_data():
     print("[5/6] Building spatial coverage sets ...")
     N_o_q, N_d_q, P_dir_q, S_pt_q, M_q = build_coverage_sets(od_df, bss_df, pt_df, C_pt)
 
-    J = bss_df["station_id"].tolist()
+    reachable_stations = set()
+    for stations in N_o_q.values():
+        reachable_stations.update(stations)
+    for stations in N_d_q.values():
+        reachable_stations.update(stations)
+    for m_list in M_q.values():
+        reachable_stations.update(m_list)
+
+    bss_df_filtered = bss_df[bss_df["station_id"].isin(reachable_stations)].reset_index(drop=True)
+    J = bss_df_filtered["station_id"].tolist()
+
+    print(f"  Reduced |J|: {len(bss_df)} -> {len(J)} stations after role-based filtering.")
+
     Q = list(zip(od_df["origin_id"], od_df["dest_id"]))
     F = {
         (row["origin_id"], row["dest_id"]): float(row["flow"])
@@ -379,5 +391,5 @@ def build_model_data():
     print("[6/6] Loading BSS trip log ...")
     trips_df = load_trip_log()
 
-    print(f"\nModel data ready: |J|={len(J)}, |Q|={len(Q):,}")
-    return J, Q, F, P_dir_q, S_pt_q, M_q, bss_df, pt_df, od_df, trips_df
+    print(f"\nModel cleaned_data ready: |J|={len(J)}, |Q|={len(Q):,}")
+    return J, Q, F, P_dir_q, S_pt_q, M_q, bss_df_filtered, pt_df, od_df, trips_df

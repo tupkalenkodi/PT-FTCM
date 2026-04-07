@@ -26,7 +26,6 @@ def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2):
 
     mdl = gp.Model("PT_FTCM")
     mdl.setParam("OutputFlag", 0)
-    mdl.setParam("TimeLimit", 3600)
     mdl.setParam("MIPGap", 0.01)
 
 
@@ -36,16 +35,20 @@ def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2):
 
     # x_j in {0,1} - station j open
     x = mdl.addVars(J, vtype=GRB.BINARY, name="x")
+    #
+    # # y1_q in [0,1] - Tier 1
+    # y1 = mdl.addVars(Q, vtype=GRB.BINARY, name="y1")
+    #
+    # # y2_q in [0,1] - Tier 2
+    # y2 = mdl.addVars(Q, vtype=GRB.BINARY, name="y2")
+    #
+    # # y3_q in [0,1] - Tier 3
+    # y3 = mdl.addVars(Q, vtype=GRB.BINARY, name="y3")
 
-    # y1_q in [0,1] - Tier 1
-    y1 = mdl.addVars(Q, vtype=GRB.BINARY, name="y1")
-
-    # y2_q in [0,1] - Tier 2
-    y2 = mdl.addVars(Q, vtype=GRB.BINARY, name="y2")
-
-    # y3_q in [0,1] - Tier 3
-    y3 = mdl.addVars(Q, vtype=GRB.BINARY, name="y3")
-
+    #
+    y1 = mdl.addVars(Q, vtype=GRB.CONTINUOUS, lb=0.0, ub=1.0, name="y1")
+    y2 = mdl.addVars(Q, vtype=GRB.CONTINUOUS, lb=0.0, ub=1.0, name="y2")
+    y3 = mdl.addVars(Q, vtype=GRB.CONTINUOUS, lb=0.0, ub=1.0, name="y3")
 
 
     # -----------------------------------------------------------------------
