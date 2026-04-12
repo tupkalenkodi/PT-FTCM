@@ -8,8 +8,8 @@ from sensitivity import run_sensitivity_analysis
 
 
 RUN_FEASIBILITY = True
-RUN_CORRELATION = True
-RUN_SENSITIVITY = True
+RUN_CORRELATION = False
+RUN_SENSITIVITY = False
 
 
 def _separator(title=""):
@@ -38,13 +38,13 @@ def main():
     print(f"  T_PT_max_min     : {config.T_PT_MAX_MIN} min")
     print(f"  Budget alpha     : {config.ALPHA}")
 
-    # Stage 1 — Data Preprocessing
+    # Stage 1 - Data Preprocessing
     _separator("Stage 1 - Preprocessing")
     t0 = time.perf_counter()
     J, Q, F, P_dir_q, S_pt_q, M_q, bss_df, pt_df, od_df, trips_df = build_model_data()
     _separator(f"Stage 1 complete  [{_hms(time.perf_counter() - t0)}]")
 
-    # Stage 2 — Time-Feasibility Analysis
+    # Stage 2 - Time-Feasibility Analysis
     if RUN_FEASIBILITY:
         _separator("Stage 2 - Time-Feasibility Analysis")
         t0 = time.perf_counter()
@@ -54,7 +54,7 @@ def main():
     else:
         _separator("Stage 2 (timing) skipped.")
 
-    # Stage 3 — Correlation Analysis
+    # Stage 3 - Correlation Analysis
     if RUN_CORRELATION:
         _separator("Stage 3 - Correlation Analysis")
         t0 = time.perf_counter()
@@ -69,7 +69,7 @@ def main():
     else:
         _separator("Stage 3 (correlation) skipped.")
 
-    # Stage 4 — Sensitivity Analysis
+    # Stage 4 - Sensitivity Analysis
     if RUN_SENSITIVITY:
         _separator("Stage 4 - Sensitivity Analysis")
         t0 = time.perf_counter()

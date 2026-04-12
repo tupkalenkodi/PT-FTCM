@@ -30,10 +30,10 @@ R_RIDE_PT = 2000
 T_PT_MAX_MIN = 20
 
 # Proportion of candidate BSS stations to open
-ALPHA = 0.9
+ALPHA = 0.3
 
 # Fractions of the full OD demand set to sample
-TIMING_FRACTIONS = [round(i / 10, 1) for i in range(1, 11, 1)]
+TIMING_FRACTIONS = [round(i / 10, 1) for i in range(10, 0, -1)]
 
 # (w1, w2, case_num) grid used in timing and sensitivity analysis
 TIMING_GRID = [

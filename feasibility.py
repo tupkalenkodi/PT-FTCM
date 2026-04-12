@@ -64,12 +64,12 @@ def run_feasibility_analysis(Q, F, P_dir_q, S_pt_q, M_q):
             print(f"    solve_time={solve_time:.2f}s")
 
             records.append({
+                "w1": w1,
+                "w2": w2,
                 "fraction": frac,
                 "n_od_pairs": len(Q_s),
                 "n_stations": len(J_s),
                 "alpha": config.ALPHA,
-                "w1": w1,
-                "w2": w2,
                 "solve_time_s": solve_time,
             })
 

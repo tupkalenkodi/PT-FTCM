@@ -53,7 +53,7 @@ def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2,
     env.start()
 
     mdl = gp.Model("PT_FTCM", env=env)
-    mdl.setParam("OutputFlag", 0)
+    mdl.setParam("OutputFlag", 1)
     mdl.setParam("MIPGap", 0.01)
     mdl.setParam("MIPFocus", 1)
     mdl.setParam("ImproveStartGap", 0.05)
@@ -124,7 +124,7 @@ def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2,
         p_dir = P_agg.get(q, [])
         s_pt = S_agg.get(q, [])
 
-        # Tier 1 — direct BSS coverage
+        # Tier 1
         if p_dir:
             mdl.addConstr(y1[q] <= gp.quicksum(b[jm] for jm in p_dir))
             orig_stations = set(j for (j, _) in p_dir)
@@ -134,7 +134,7 @@ def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2,
         else:
             mdl.addConstr(y1[q] <= 0)
 
-        # Tier 2 — PT-hop coverage
+        # Tier 2
         if s_pt:
             mdl.addConstr(y2[q] <= gp.quicksum(c[qj_to_t2sig[(q, j)]] for j in s_pt))
             mdl.addConstr(y2[q] <= gp.quicksum(x[j] for j in s_pt))
@@ -146,7 +146,7 @@ def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2,
         else:
             mdl.addConstr(y2[q] <= 0)
 
-        # Tier 3 — multimodal coverage (intersection of Tier 1 and Tier 2)
+        # Tier 3
         mdl.addConstr(y3[q] <= y1[q])
         mdl.addConstr(y3[q] <= y2[q])
         mdl.addConstr(y3[q] >= y1[q] + y2[q] - 1)
