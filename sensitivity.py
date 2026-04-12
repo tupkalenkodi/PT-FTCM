@@ -67,8 +67,9 @@ def run_sensitivity_analysis(J, Q, F, P_dir_q, S_pt_q, M_q, bss_df, pt_df, trips
 
             n_solved = len(eta_trip_vals)
             record = {
+                "w1": w1,
+                "w2": w2,
                 "delta": delta,
-                "n_solved": n_solved,
                 "eta_trip_mean": np.mean(eta_trip_vals),
                 "eta_trip_std": np.std(eta_trip_vals),
                 "eta_pt_mean": np.mean(eta_pt_vals),

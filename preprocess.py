@@ -189,10 +189,10 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
     # N^o_q and N^d_q — BSS stations walkable from each origin/destination
     unique_origins = od_df[["origin_id", "origin_lat", "origin_lon"]].drop_duplicates("origin_id").reset_index(
         drop=True)
-    unique_dests = od_df[["dest_id", "dest_lat", "dest_lon"]].drop_duplicates("dest_id").reset_index(drop=True)
+    unique_destinations = od_df[["dest_id", "dest_lat", "dest_lon"]].drop_duplicates("dest_id").reset_index(drop=True)
 
     orig_coords_rad = np.radians(unique_origins[["origin_lat", "origin_lon"]].values)
-    dest_coords_rad = np.radians(unique_dests[["dest_lat", "dest_lon"]].values)
+    dest_coords_rad = np.radians(unique_destinations[["dest_lat", "dest_lon"]].values)
 
     orig_nbrs_idx = _pairs_within_radius(orig_coords_rad, bss_coords_rad, config.R_WALK_BSS)
     dest_nbrs_idx = _pairs_within_radius(dest_coords_rad, bss_coords_rad, config.R_WALK_BSS)
@@ -202,8 +202,8 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
         for idx in range(len(unique_origins))
     }
     _N_d_loc = {
-        unique_dests.loc[idx, "dest_id"]: [bss_ids[i] for i in dest_nbrs_idx[idx]]
-        for idx in range(len(unique_dests))
+        unique_destinations.loc[idx, "dest_id"]: [bss_ids[i] for i in dest_nbrs_idx[idx]]
+        for idx in range(len(unique_destinations))
     }
 
     N_o_q = {}
@@ -240,7 +240,7 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
 
     dest_nbrs_from_pt = _pairs_within_radius(pt_coords_rad, dest_coords_rad, config.R_WALK_BSS)
     pt_to_reachable_dest_ids: dict[str, set] = {
-        pt_ids[k]: {unique_dests.loc[d_idx, "dest_id"] for d_idx in dest_nbrs_from_pt[k]}
+        pt_ids[k]: {unique_destinations.loc[d_idx, "dest_id"] for d_idx in dest_nbrs_from_pt[k]}
         for k in range(len(pt_ids))
     }
 
