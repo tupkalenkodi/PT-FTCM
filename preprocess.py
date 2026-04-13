@@ -1,8 +1,9 @@
 from collections import defaultdict
-from math import radians, cos, sin, asin, sqrt
-from scipy.spatial import cKDTree
+from typing import cast
+
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 import config
 
@@ -11,15 +12,15 @@ import config
 # LOADERS
 # ---------------------------------------------------------------------------
 
-def load_bss_candidate_stations():
-    trips = pd.read_csv(
+def load_bss_candidate_stations() -> pd.DataFrame:
+    trips = cast(pd.DataFrame, pd.read_csv(
         config.BSS_TRIP_LOG_PATH,
         dtype={"start_station_id": str, "end_station_id": str},
         usecols=[
             "start_station_id", "start_lat", "start_lng",
             "end_station_id", "end_lat", "end_lng",
         ],
-    )
+    ))
     starts = trips[["start_station_id", "start_lat", "start_lng"]].rename(
         columns={"start_station_id": "station_id", "start_lat": "lat", "start_lng": "lon"}
     )
@@ -36,15 +37,15 @@ def load_bss_candidate_stations():
     return df
 
 
-def load_trip_log():
-    trips = pd.read_csv(
+def load_trip_log() -> pd.DataFrame:
+    trips = cast(pd.DataFrame, pd.read_csv(
         config.BSS_TRIP_LOG_PATH,
         dtype={"start_station_id": str, "end_station_id": str},
         usecols=[
             "start_station_id", "start_lat", "start_lng",
             "end_station_id", "end_lat", "end_lng",
         ],
-    )
+    ))
     trips = trips.dropna(subset=[
         "start_station_id", "end_station_id",
         "start_lat", "start_lng", "end_lat", "end_lng",
@@ -53,15 +54,15 @@ def load_trip_log():
     return trips
 
 
-def load_pt_stops():
-    train_stops = pd.read_csv(config.TRAIN_STOPS_PATH)
+def load_pt_stops() -> pd.DataFrame:
+    train_stops = cast(pd.DataFrame, pd.read_csv(config.TRAIN_STOPS_PATH))
     if "location_type" in train_stops.columns:
         train_stops = train_stops[train_stops["location_type"] == 1]
     train_stops = train_stops[["stop_id", "stop_name", "stop_lat", "stop_lon"]].copy()
     train_stops = train_stops.dropna(subset=["stop_lat", "stop_lon"])
     train_stops["type"] = "train"
 
-    bus_stops = pd.read_csv(config.BUS_STOPS_PATH)
+    bus_stops = cast(pd.DataFrame, pd.read_csv(config.BUS_STOPS_PATH))
     bus_stops = bus_stops[["stop_id", "stop_name", "stop_lat", "stop_lon"]].copy()
     bus_stops = bus_stops.dropna(subset=["stop_lat", "stop_lon"])
     bus_stops["type"] = "bus"
@@ -71,17 +72,17 @@ def load_pt_stops():
     return stops
 
 
-def load_od_demand():
-    od = pd.read_csv(config.OD_DATA_PATH, dtype={"h_geocode": str, "w_geocode": str})
+def load_od_demand() -> pd.DataFrame:
+    od = cast(pd.DataFrame, pd.read_csv(config.OD_DATA_PATH, dtype={"h_geocode": str, "w_geocode": str}))
     od = od[["h_geocode", "w_geocode", "S000"]].dropna()
     od = od[od["S000"] > 0]
     od.columns = ["origin_id", "dest_id", "flow"]
 
-    xwalk = pd.read_csv(
+    xwalk = cast(pd.DataFrame, pd.read_csv(
         config.XWALK_PATH,
         dtype={"tabblk2020": str},
         usecols=["tabblk2020", "blklatdd", "blklondd"],
-    ).dropna().drop_duplicates(subset=["tabblk2020"])
+    )).dropna().drop_duplicates(subset=["tabblk2020"])
 
     od = od.merge(
         xwalk.rename(columns={"tabblk2020": "origin_id", "blklatdd": "origin_lat", "blklondd": "origin_lon"}),
@@ -99,13 +100,13 @@ def load_od_demand():
 # ---------------------------------------------------------------------------
 
 # Great-circle distance in metres between two (lon, lat) points
-def haversine(lon1, lat1, lon2, lat2):
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-    a = sin((lon2 - lon1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lat2 - lat1) / 2) ** 2
-    return 2 * asin(sqrt(a)) * 6_371_000
+def haversine(lon1: float, lat1: float, lon2: float, lat2: float) -> np.floating:
+    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
+    a = np.sin((lon2 - lon1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lat2 - lat1) / 2) ** 2
+    return 2 * np.arcsin(np.sqrt(a)) * 6_371_000
 
 
-def _latlon_to_xyz(lat_rad, lon_rad):
+def _latlon_to_xyz(lat_rad: np.ndarray, lon_rad: np.ndarray) -> np.ndarray:
     x = np.cos(lat_rad) * np.cos(lon_rad)
     y = np.cos(lat_rad) * np.sin(lon_rad)
     z = np.sin(lat_rad)
@@ -113,7 +114,7 @@ def _latlon_to_xyz(lat_rad, lon_rad):
 
 
 # Returns, for each query point, all ref indices within radius_m metres
-def _pairs_within_radius(query_coords_rad, ref_coords_rad, radius_m):
+def _pairs_within_radius(query_coords_rad: np.ndarray, ref_coords_rad: np.ndarray, radius_m: float) -> list:
     R = 6_371_000.0
     chord = 2.0 * np.sin(radius_m / (2.0 * R))
     query_xyz = _latlon_to_xyz(query_coords_rad[:, 0], query_coords_rad[:, 1])
@@ -126,12 +127,12 @@ def _pairs_within_radius(query_coords_rad, ref_coords_rad, radius_m):
 # SET CONSTRUCTION
 # ---------------------------------------------------------------------------
 
-def build_pt_reachability(pt_df):
+def build_pt_reachability(pt_df: pd.DataFrame) -> dict[tuple[str, str], int]:
     print("  Building PT reachability matrix C_{kk'} ...")
     valid_pt_ids = set(pt_df["stop_id"].astype(str))
     C = {}
 
-    def _to_minutes(t_series):
+    def _to_minutes(t_series: pd.Series) -> pd.Series:
         parts = t_series.str.split(":", expand=True).astype(int)
         return parts[0] * 60 + parts[1] + parts[2] / 60
 
@@ -143,15 +144,15 @@ def build_pt_reachability(pt_df):
     for mode in modes:
         print(f"    -> Processing {mode['name']} stop times...")
         prev = len(C)
-        stop_times = pd.read_csv(
+        stop_times = cast(pd.DataFrame, pd.read_csv(
             mode["path"],
             dtype={"stop_id": str, "trip_id": str},
             usecols=["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time"],
-        )
+        ))
 
         if mode["needs_mapping"]:
-            stops_meta = pd.read_csv(config.TRAIN_STOPS_PATH,
-                                     dtype={"stop_id": str, "parent_station": str})
+            stops_meta = cast(pd.DataFrame, pd.read_csv(config.TRAIN_STOPS_PATH,
+                                     dtype={"stop_id": str, "parent_station": str}))
             id_map = dict(zip(stops_meta["stop_id"], stops_meta["parent_station"]))
             stop_times["mapped_id"] = stop_times["stop_id"].map(id_map)
         else:
@@ -178,7 +179,18 @@ def build_pt_reachability(pt_df):
     return C
 
 
-def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
+def build_coverage_sets(
+    od_df: pd.DataFrame,
+    bss_df: pd.DataFrame,
+    pt_df: pd.DataFrame,
+    C_pt: dict[tuple[str, str], int],
+) -> tuple[
+    dict[tuple[str, str], list[str]],
+    dict[tuple[str, str], list[str]],
+    dict[tuple[str, str], list[tuple[str, str]]],
+    dict[tuple[str, str], list[str]],
+    dict[tuple[tuple[str, str], str], list[str]],
+]:
     bss_ids = bss_df["station_id"].tolist()
     pt_ids = pt_df["stop_id"].astype(str).tolist()
 
@@ -186,7 +198,7 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
     pt_coords_rad = np.radians(pt_df[["stop_lat", "stop_lon"]].values)
     bss_id_to_idx = {sid: idx for idx, sid in enumerate(bss_ids)}
 
-    # N^o_q and N^d_q — BSS stations walkable from each origin/destination
+    # N^o_q and N^d_q - BSS stations walkable from each origin/destination
     unique_origins = od_df[["origin_id", "origin_lat", "origin_lon"]].drop_duplicates("origin_id").reset_index(
         drop=True)
     unique_destinations = od_df[["dest_id", "dest_lat", "dest_lon"]].drop_duplicates("dest_id").reset_index(drop=True)
@@ -215,7 +227,7 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
 
     print(f"  N_o_q / N_d_q built for {len(N_o_q)} OD flows.")
 
-    # P^dir_q — direct BSS-to-BSS pairs within cycling range
+    # P^dir_q - direct BSS-to-BSS pairs within cycling range
     bss_within_cycle = _pairs_within_radius(bss_coords_rad, bss_coords_rad, config.R_RIDE_DIR)
     bss_reachability = {
         bss_ids[i]: {bss_ids[nb] for nb in bss_within_cycle[i]}
@@ -285,14 +297,37 @@ def build_coverage_sets(od_df, bss_df, pt_df, C_pt):
     print(f"  S^pt_q built: {n_nonempty_phi}/{len(S_pt_q)} OD pairs have >=1 PT-hop-enabling origin station.")
     print(f"  M_q built: {len(M_q)} (q, j) entries with >=1 intermediate station.")
 
-    return N_o_q, N_d_q, P_dir_q, S_pt_q, M_q
+    return cast(
+        tuple[
+            dict[tuple[str, str], list[str]],
+            dict[tuple[str, str], list[str]],
+            dict[tuple[str, str], list[tuple[str, str]]],
+            dict[tuple[str, str], list[str]],
+            dict[tuple[tuple[str, str], str], list[str]],
+        ],
+        (N_o_q, N_d_q, P_dir_q, S_pt_q, M_q),
+    )
 
 
 # ---------------------------------------------------------------------------
 # COVERAGE-SIGNATURE AGGREGATION
 # ---------------------------------------------------------------------------
 
-def precompute_aggregation_structure(Q_active, P_dir_q, S_pt_q, M_q):
+def precompute_aggregation_structure(
+    Q_active: list[tuple[str, str]],
+    P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
+    S_pt_q: dict[tuple[str, str], list[str]],
+    M_q: dict[tuple[tuple[str, str], str], list[str]],
+) -> tuple[
+    list[tuple[str, str]],
+    list[tuple[str, str]],
+    dict[tuple[str, str], list[tuple[str, str]]],
+    dict[tuple[str, str], list[str]],
+    dict[tuple[tuple[str, str], str], list[str]],
+    dict,
+    dict,
+    int,
+]:
     sig_to_rep = {}
     q_to_sig = {}
     rep_sets = {}
@@ -330,7 +365,12 @@ def precompute_aggregation_structure(Q_active, P_dir_q, S_pt_q, M_q):
     return Q_active, Q_agg, P_agg, S_agg, M_agg, sig_to_rep, q_to_sig, n_merged
 
 
-def aggregate_flows(F, Q_active, sig_to_rep, q_to_sig):
+def aggregate_flows(
+    F: dict[tuple[str, str], float],
+    Q_active: list[tuple[str, str]],
+    sig_to_rep: dict,
+    q_to_sig: dict,
+) -> dict[tuple[str, str], float]:
     sig_to_flow = defaultdict(float)
     for q in Q_active:
         sig_to_flow[q_to_sig[q]] += F[q]
@@ -341,7 +381,19 @@ def aggregate_flows(F, Q_active, sig_to_rep, q_to_sig):
 # ENTRY POINT
 # ---------------------------------------------------------------------------
 
-def build_model_data():
+def build_model_data() -> tuple[
+    list[str],                                              # J
+    list[tuple[str, str]],                                  # Q
+    dict[tuple[str, str], float],                           # F
+    dict[tuple[str, str], list[tuple[str, str]]],           # P_dir_q
+    dict[tuple[str, str], list[str]],                       # S_pt_q
+    dict[tuple[tuple[str, str], str], list[str]],           # M_q
+    pd.DataFrame,                                           # bss_df_filtered
+    pd.DataFrame,                                           # pt_df
+    pd.DataFrame,                                           # od_df
+    pd.DataFrame                                            # trips_df
+]:
+
     print("[1/6] Loading BSS candidate stations ...")
     bss_df = load_bss_candidate_stations()
 

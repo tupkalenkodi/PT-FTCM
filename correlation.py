@@ -6,7 +6,6 @@ import config
 from model import build_and_solve_pt_ftcm
 from preprocess import (
     _pairs_within_radius,
-    haversine,
     precompute_aggregation_structure,
 )
 
@@ -15,7 +14,7 @@ from preprocess import (
 # STATION-LEVEL PT PROXIMITY
 # ---------------------------------------------------------------------------
 
-def _build_station_pt_proximity(bss_df, pt_df):
+def _build_station_pt_proximity(bss_df: pd.DataFrame, pt_df: pd.DataFrame) -> dict[str, bool]:
     bss_coords_rad = np.radians(bss_df[["lat", "lon"]].values)
     pt_coords_rad = np.radians(pt_df[["stop_lat", "stop_lon"]].values)
     neighbours = _pairs_within_radius(bss_coords_rad, pt_coords_rad, config.R_WALK_PT)
@@ -25,34 +24,31 @@ def _build_station_pt_proximity(bss_df, pt_df):
     }
 
 
-def _build_station_pt_min_dist(bss_df, pt_df):
-    pt_coords = pt_df[["stop_lat", "stop_lon"]].values
-    return {
-        row["station_id"]: min(
-            haversine(row["lon"], row["lat"], pt[1], pt[0])
-            for pt in pt_coords
-        )
-        for _, row in bss_df.iterrows()
-    }
-
-
 # ---------------------------------------------------------------------------
 # METRICS
 # ---------------------------------------------------------------------------
 
-def compute_eta_trip(trips_df, opened_set):
-    covered = trips_df[
-        trips_df["start_station_id"].isin(opened_set) &
-        trips_df["end_station_id"].isin(opened_set)
+def compute_eta_cov(trips_df: pd.DataFrame, opened_set: set[str], candidate_set: set[str]) -> float:
+    eligible = trips_df[
+        trips_df["start_station_id"].isin(candidate_set) &
+        trips_df["end_station_id"].isin(candidate_set)
         ]
-    return float(len(covered) / len(trips_df))
+    if len(eligible) == 0:
+        return 0.0
+    covered = eligible[
+        eligible["start_station_id"].isin(opened_set) &
+        eligible["end_station_id"].isin(opened_set)
+        ]
+    return float(len(covered) / len(eligible))
 
 
-def compute_eta_pt(trips_df, opened_set, station_near_pt):
+def compute_eta_pt(trips_df: pd.DataFrame, opened_set: set[str], station_near_pt: dict[str, bool]) -> float:
     t_star = trips_df[
         trips_df["start_station_id"].isin(opened_set) &
         trips_df["end_station_id"].isin(opened_set)
         ]
+    if len(t_star) == 0:
+        return 0.0
     near_pt = (
             t_star["start_station_id"].map(station_near_pt) |
             t_star["end_station_id"].map(station_near_pt)
@@ -60,16 +56,11 @@ def compute_eta_pt(trips_df, opened_set, station_near_pt):
     return float(near_pt.sum() / len(t_star))
 
 
-def compute_eta_proximity(opened_set, station_min_dist_pt):
-    dists = [station_min_dist_pt[j] for j in opened_set]
-    return float(np.mean(dists))
-
-
 # ---------------------------------------------------------------------------
 # PARTIAL SPEARMAN CORRELATION
 # ---------------------------------------------------------------------------
 
-def _partial_spearman(df, x_col, y_col, control_col):
+def _partial_spearman(df: pd.DataFrame, x_col: str, y_col: str, control_col: str) -> tuple[float, float]:
     sub = df[[x_col, y_col, control_col]].dropna()
     n = len(sub)
 
@@ -90,16 +81,14 @@ def _partial_spearman(df, x_col, y_col, control_col):
     return float(r), float(p)
 
 
-def _spearman_test(results_df):
-    df = results_df.dropna(subset=["eta_trip", "eta_pt", "eta_proximity"])
+def _spearman_test(results_df: pd.DataFrame) -> pd.DataFrame:
+    df = results_df.dropna(subset=["eta_cov", "eta_pt"])
 
     tests = [
-        ("w1", "eta_trip", "w2"),
+        ("w1", "eta_cov", "w2"),
         ("w1", "eta_pt", "w2"),
-        ("w1", "eta_proximity", "w2"),
-        ("w2", "eta_trip", "w1"),
+        ("w2", "eta_cov", "w1"),
         ("w2", "eta_pt", "w1"),
-        ("w2", "eta_proximity", "w1"),
     ]
 
     rows = []
@@ -122,20 +111,38 @@ def _spearman_test(results_df):
 # MAIN EVALUATION LOOP
 # ---------------------------------------------------------------------------
 
-def run_correlation_analysis(J, Q, F, P_dir_q, S_pt_q, M_q, bss_df, pt_df, trips_df):
+def run_correlation_analysis(
+    J: list[str],
+    Q: list[tuple[str, str]],
+    F: dict[tuple[str, str], float],
+    P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
+    S_pt_q: dict[tuple[str, str], list[str]],
+    M_q: dict[tuple[tuple[str, str], str], list[str]],
+    bss_df: pd.DataFrame,
+    pt_df: pd.DataFrame,
+    trips_df: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    candidate_set = set(J)
+
     station_near_pt = _build_station_pt_proximity(bss_df, pt_df)
-    station_min_dist_pt = _build_station_pt_min_dist(bss_df, pt_df)
-    print(f"  Stations within R_PT of a PT stop : {sum(station_near_pt.values())}")
-    print(f"  Avg min-distance to PT (all)      : {np.mean(list(station_min_dist_pt.values())):.1f} m")
-    print(f"  Trip log                          : {len(trips_df):,} records")
+
+    eligible = trips_df[
+        trips_df["start_station_id"].isin(candidate_set) &
+        trips_df["end_station_id"].isin(candidate_set)
+        ]
+    print(f"  Stations within R_PT of a PT stop  : {sum(station_near_pt.values())}")
+    print(f"  Trip log (all records)             : {len(trips_df):,}")
+    print(f"  Candidate-eligible trips           : {len(eligible):,}  "
+          f"({100 * len(eligible) / len(trips_df):.1f}% of total)")
 
     # Precompute aggregation structure once - Q and coverage sets are fixed
     Q_active = [q for q in Q if P_dir_q.get(q) or S_pt_q.get(q)]
     precomputed = precompute_aggregation_structure(Q_active, P_dir_q, S_pt_q, M_q)
 
     records = []
-    for w1, w2 in config.CORRELATION_GRID:
-        print(f"\n  Policy weights: w1={w1}, w2={w2}")
+    for run_idx, (w1, w2) in enumerate(config.CORRELATION_GRID):
+        print(f"\n  [{run_idx + 1}/{len(config.CORRELATION_GRID)}] "
+              f"Policy weights: w1={w1}, w2={w2}")
         obj_val, opened, solve_time = build_and_solve_pt_ftcm(
             J, Q, F, P_dir_q, S_pt_q, M_q,
             alpha=config.ALPHA, w1=w1, w2=w2,
@@ -147,24 +154,22 @@ def run_correlation_analysis(J, Q, F, P_dir_q, S_pt_q, M_q, bss_df, pt_df, trips
             continue
 
         opened_set = set(opened)
-        eta_trip = compute_eta_trip(trips_df, opened_set)
+        eta_cov = compute_eta_cov(trips_df, opened_set, candidate_set)
         eta_pt = compute_eta_pt(trips_df, opened_set, station_near_pt)
-        eta_dist = compute_eta_proximity(opened_set, station_min_dist_pt)
 
         print(
             f"    |S*|={len(opened)};  "
-            f"    eta_trip={eta_trip:.3f};  "
-            f"    eta_adj={eta_pt:.3f};  "
-            f"    eta_proximity={eta_dist:.1f} m;  "
-            f"    solve_time={solve_time:.2f}s"
+            f"eta_cov={eta_cov:.3f};  "
+            f"eta_pt={eta_pt:.3f};  "
+            f"solve_time={solve_time:.2f}s"
         )
         records.append({
             "w1": w1,
             "w2": w2,
-            "n_stations_opened": len(opened),
-            "eta_trip": eta_trip,
+            "|S*|": len(opened),
+            "eta_cov": eta_cov,
             "eta_pt": eta_pt,
-            "eta_proximity": eta_dist,
+            "solve_time": solve_time,
         })
 
     results_df = pd.DataFrame(records)

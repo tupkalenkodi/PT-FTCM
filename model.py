@@ -1,10 +1,22 @@
 import math
+
 import gurobipy as gp
 from gurobipy import GRB
 
 
-def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2,
-                            precomputed=None, skip=False):
+def build_and_solve_pt_ftcm(
+    J: list[str],
+    Q: list[tuple[str, str]],
+    F: dict[tuple[str, str], float],
+    P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
+    S_pt_q: dict[tuple[str, str], list[str]],
+    M_q: dict[tuple[tuple[str, str], str], list[str]],
+    alpha: float,
+    w1: float,
+    w2: float,
+    precomputed: tuple | None = None,
+) -> tuple[float | None, list[str], float]:
+
     assert w1 >= 1.0, "w_1 must be >= 1"
     assert w2 >= w1, "w_2 must be >= w_1"
 
@@ -53,7 +65,7 @@ def build_and_solve_pt_ftcm(J, Q, F, P_dir_q, S_pt_q, M_q, alpha, w1, w2,
     env.start()
 
     mdl = gp.Model("PT_FTCM", env=env)
-    mdl.setParam("OutputFlag", 1)
+    mdl.setParam("OutputFlag", 0)
     mdl.setParam("MIPGap", 0.01)
     mdl.setParam("MIPFocus", 1)
     mdl.setParam("ImproveStartGap", 0.05)
