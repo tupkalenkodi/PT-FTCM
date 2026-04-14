@@ -112,15 +112,15 @@ def _spearman_test(results_df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def run_correlation_analysis(
-    J: list[str],
-    Q: list[tuple[str, str]],
-    F: dict[tuple[str, str], float],
-    P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
-    S_pt_q: dict[tuple[str, str], list[str]],
-    M_q: dict[tuple[tuple[str, str], str], list[str]],
-    bss_df: pd.DataFrame,
-    pt_df: pd.DataFrame,
-    trips_df: pd.DataFrame,
+        J: list[str],
+        Q: list[tuple[str, str]],
+        F: dict[tuple[str, str], float],
+        P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
+        S_pt_q: dict[tuple[str, str], list[str]],
+        M_q: dict[tuple[tuple[str, str], str], list[str]],
+        bss_df: pd.DataFrame,
+        pt_df: pd.DataFrame,
+        trips_df: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     candidate_set = set(J)
 
