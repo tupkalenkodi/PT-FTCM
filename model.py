@@ -5,18 +5,17 @@ from gurobipy import GRB
 
 
 def build_and_solve_pt_ftcm(
-    J: list[str],
-    Q: list[tuple[str, str]],
-    F: dict[tuple[str, str], float],
-    P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
-    S_pt_q: dict[tuple[str, str], list[str]],
-    M_q: dict[tuple[tuple[str, str], str], list[str]],
-    alpha: float,
-    w1: float,
-    w2: float,
-    precomputed: tuple | None = None,
+        J: list[str],
+        Q: list[tuple[str, str]],
+        F: dict[tuple[str, str], float],
+        P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
+        S_pt_q: dict[tuple[str, str], list[str]],
+        M_q: dict[tuple[tuple[str, str], str], list[str]],
+        alpha: float,
+        w1: float,
+        w2: float,
+        precomputed: tuple | None = None,
 ) -> tuple[float | None, list[str], float]:
-
     assert w1 >= 1.0, "w_1 must be >= 1"
     assert w2 >= w1, "w_2 must be >= w_1"
 
@@ -101,14 +100,14 @@ def build_and_solve_pt_ftcm(
     y2 = mdl.addVars(Q_agg, vtype=GRB.CONTINUOUS, lb=0.0, ub=1.0, name="y2")
     y3 = mdl.addVars(Q_agg, vtype=GRB.CONTINUOUS, lb=0.0, ub=1.0, name="y3")
 
-    # Tier-1 auxiliary variables: b[j,m] = x[j] AND x[m]
+    # Tier-1 auxiliary variables
     b = mdl.addVars(list(unique_t1_pairs), vtype=GRB.CONTINUOUS, lb=0.0, ub=1.0, name="b")
     for (j, m) in unique_t1_pairs:
         mdl.addConstr(b[j, m] <= x[j])
         mdl.addConstr(b[j, m] <= x[m])
         mdl.addConstr(b[j, m] >= x[j] + x[m] - 1)
 
-    # Tier-2 auxiliary variables: c[j, m_sig] = x[j] AND (any x[i] in M)
+    # Tier-2 auxiliary variables
     c = mdl.addVars(list(t2_sig_to_mlist.keys()), vtype=GRB.CONTINUOUS, lb=0.0, ub=1.0, name="c")
     for (j, m_sig), m_list in t2_sig_to_mlist.items():
         mdl.addConstr(c[j, m_sig] <= x[j])

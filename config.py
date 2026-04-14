@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "cleaned_data"
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -41,7 +40,7 @@ CORRELATION_GRID = [
     if w2 >= w1
 ]  # -> 45 points
 
-# (w1, w2) grid used in timing and sensitivity analysis
+# (w1, w2) grid used in sensitivity analysis
 SENSITIVITY_GRID = [
     (1.0, 1.0),
     (2.0, 2.0),

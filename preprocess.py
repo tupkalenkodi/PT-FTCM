@@ -152,7 +152,7 @@ def build_pt_reachability(pt_df: pd.DataFrame) -> dict[tuple[str, str], int]:
 
         if mode["needs_mapping"]:
             stops_meta = cast(pd.DataFrame, pd.read_csv(config.TRAIN_STOPS_PATH,
-                                     dtype={"stop_id": str, "parent_station": str}))
+                                                        dtype={"stop_id": str, "parent_station": str}))
             id_map = dict(zip(stops_meta["stop_id"], stops_meta["parent_station"]))
             stop_times["mapped_id"] = stop_times["stop_id"].map(id_map)
         else:
@@ -180,10 +180,10 @@ def build_pt_reachability(pt_df: pd.DataFrame) -> dict[tuple[str, str], int]:
 
 
 def build_coverage_sets(
-    od_df: pd.DataFrame,
-    bss_df: pd.DataFrame,
-    pt_df: pd.DataFrame,
-    C_pt: dict[tuple[str, str], int],
+        od_df: pd.DataFrame,
+        bss_df: pd.DataFrame,
+        pt_df: pd.DataFrame,
+        C_pt: dict[tuple[str, str], int],
 ) -> tuple[
     dict[tuple[str, str], list[str]],
     dict[tuple[str, str], list[str]],
@@ -314,10 +314,10 @@ def build_coverage_sets(
 # ---------------------------------------------------------------------------
 
 def precompute_aggregation_structure(
-    Q_active: list[tuple[str, str]],
-    P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
-    S_pt_q: dict[tuple[str, str], list[str]],
-    M_q: dict[tuple[tuple[str, str], str], list[str]],
+        Q_active: list[tuple[str, str]],
+        P_dir_q: dict[tuple[str, str], list[tuple[str, str]]],
+        S_pt_q: dict[tuple[str, str], list[str]],
+        M_q: dict[tuple[tuple[str, str], str], list[str]],
 ) -> tuple[
     list[tuple[str, str]],
     list[tuple[str, str]],
@@ -366,10 +366,10 @@ def precompute_aggregation_structure(
 
 
 def aggregate_flows(
-    F: dict[tuple[str, str], float],
-    Q_active: list[tuple[str, str]],
-    sig_to_rep: dict,
-    q_to_sig: dict,
+        F: dict[tuple[str, str], float],
+        Q_active: list[tuple[str, str]],
+        sig_to_rep: dict,
+        q_to_sig: dict,
 ) -> dict[tuple[str, str], float]:
     sig_to_flow = defaultdict(float)
     for q in Q_active:
@@ -382,18 +382,17 @@ def aggregate_flows(
 # ---------------------------------------------------------------------------
 
 def build_model_data() -> tuple[
-    list[str],                                              # J
-    list[tuple[str, str]],                                  # Q
-    dict[tuple[str, str], float],                           # F
-    dict[tuple[str, str], list[tuple[str, str]]],           # P_dir_q
-    dict[tuple[str, str], list[str]],                       # S_pt_q
-    dict[tuple[tuple[str, str], str], list[str]],           # M_q
-    pd.DataFrame,                                           # bss_df_filtered
-    pd.DataFrame,                                           # pt_df
-    pd.DataFrame,                                           # od_df
-    pd.DataFrame                                            # trips_df
+    list[str],  # J
+    list[tuple[str, str]],  # Q
+    dict[tuple[str, str], float],  # F
+    dict[tuple[str, str], list[tuple[str, str]]],  # P_dir_q
+    dict[tuple[str, str], list[str]],  # S_pt_q
+    dict[tuple[tuple[str, str], str], list[str]],  # M_q
+    pd.DataFrame,  # bss_df_filtered
+    pd.DataFrame,  # pt_df
+    pd.DataFrame,  # od_df
+    pd.DataFrame  # trips_df
 ]:
-
     print("[1/6] Loading BSS candidate stations ...")
     bss_df = load_bss_candidate_stations()
 

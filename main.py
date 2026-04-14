@@ -5,9 +5,8 @@ from correlation import run_correlation_analysis
 from preprocess import build_model_data
 from sensitivity import run_sensitivity_analysis
 
-
-RUN_CORRELATION = True
-RUN_SENSITIVITY = False
+RUN_CORRELATION = False
+RUN_SENSITIVITY = True
 
 
 def _separator(title: str = "") -> None:
