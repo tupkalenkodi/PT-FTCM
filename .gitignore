@@ -1,5 +1,4 @@
-.DS_Store
-.idea
-__pycache__
-/cleaned_data
-/original_data
+cleaned_data/
+original_data/
+polish_data/
+
